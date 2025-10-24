@@ -1,0 +1,10 @@
+{
+  "vegetable_peels": 10,
+  "sawdust": 5,
+  "dry_leaves": 4,
+  "plastic_shreds": 2,
+  "straws_fibers": 1,
+  "e_waste": 0.2,
+  "sand": 0.5,
+  "other": 0.3
+}
