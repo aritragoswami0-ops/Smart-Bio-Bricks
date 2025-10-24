@@ -1,57 +1,22 @@
 workflows:
-  android-app:
-    name: Build Android APK (verbose debug)
-    max_build_duration: 90
+  build_android:
+    name: Build Android APK (Safe Debug)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
     environment:
       flutter: stable
       xcode: latest
+      cocoapods: default
     scripts:
-      - name: Show repo root (debug)
+      - name: Create missing Android folder
         script: |
-          echo "=== Listing files in repo root ==="
-          ls -la
-          echo "=== end listing ==="
-
-      - name: Check for pubspec.yaml
-        script: |
-          if [ -f pubspec.yaml ]; then
-            echo "✅ Found pubspec.yaml"
-          else
-            echo "❌ ERROR: pubspec.yaml not found!"
-            exit 1
-          fi
-
-      - name: Ensure Flutter native folders
-        script: |
-          if [ -d android ] && [ -d ios ]; then
-            echo "✅ Native folders present"
-          else
-            echo "⚙️  Creating missing native folders..."
+          if [ ! -d "android" ]; then
+            echo "Android folder missing. Creating it..."
             flutter create .
           fi
-
-      - name: Get Flutter dependencies (verbose)
-        script: |
-          flutter pub get -v
-
-      - name: Accept Android SDK licenses
-        script: |
-          yes | flutter doctor --android-licenses || true
-
-      - name: Build debug APK (verbose and capture log)
-        script: |
-          echo ">>> Starting flutter build (verbose). This may take several minutes..."
-          # run build with verbose output, pipe to file and tee to console
-          flutter build apk --debug -v 2>&1 | tee build.log
-          build_exit_code=${PIPESTATUS[0]}
-          if [ "$build_exit_code" -ne 0 ]; then
-            echo ">>> BUILD FAILED with exit code $build_exit_code"
-            echo ">>> Showing last 200 lines of build.log for quick debugging:"
-            tail -n 200 build.log || true
-            exit $build_exit_code
-          else
-            echo ">>> BUILD SUCCEEDED"
-          fi
-
+      - name: Get Flutter dependencies
+        script: flutter pub get
+      - name: Build debug APK
+        script: flutter build apk --debug
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/flutter-apk/app-debug.apk
