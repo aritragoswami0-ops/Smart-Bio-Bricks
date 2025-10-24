@@ -1,16 +1,16 @@
 workflows:
   android-app:
-    name: Build Android APK (safe debug)
-    max_build_duration: 60
+    name: Build Android APK (verbose debug)
+    max_build_duration: 90
     environment:
       flutter: stable
       xcode: latest
     scripts:
       - name: Show repo root (debug)
         script: |
-          echo "=== Listing files ==="
+          echo "=== Listing files in repo root ==="
           ls -la
-          echo "===================="
+          echo "=== end listing ==="
 
       - name: Check for pubspec.yaml
         script: |
@@ -30,15 +30,28 @@ workflows:
             flutter create .
           fi
 
-      - name: Get Flutter dependencies
-        script: flutter pub get
+      - name: Get Flutter dependencies (verbose)
+        script: |
+          flutter pub get -v
 
       - name: Accept Android SDK licenses
         script: |
           yes | flutter doctor --android-licenses || true
 
-      - name: Build Debug APK
-        script: flutter build apk --debug
+      - name: Build debug APK (verbose and capture log)
+        script: |
+          echo ">>> Starting flutter build (verbose). This may take several minutes..."
+          # run build with verbose output, pipe to file and tee to console
+          flutter build apk --debug -v 2>&1 | tee build.log
+          build_exit_code=${PIPESTATUS[0]}
+          if [ "$build_exit_code" -ne 0 ]; then
+            echo ">>> BUILD FAILED with exit code $build_exit_code"
+            echo ">>> Showing last 200 lines of build.log for quick debugging:"
+            tail -n 200 build.log || true
+            exit $build_exit_code
+          else
+            echo ">>> BUILD SUCCEEDED"
+          fi
 
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
