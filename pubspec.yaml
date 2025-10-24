@@ -1,5 +1,5 @@
 name: smart_bio_bricks_app
-description: Smart Bio Bricks — analytical version
+description: Smart Bio Bricks - analytical app (editable inputs, realtime analytics)
 publish_to: "none"
 version: 1.0.0+1
 
@@ -10,10 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-  google_fonts: ^3.0.1
-  fl_chart: ^0.55.2
   provider: ^6.0.5
-  # http not required unless you will fetch remote data
+  shared_preferences: ^2.0.15
+  fl_chart: ^0.55.2
+  google_fonts: ^3.0.1
 
 dev_dependencies:
   flutter_test:
