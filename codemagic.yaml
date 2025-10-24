@@ -1,0 +1,44 @@
+workflows:
+  android-app:
+    name: Build Android APK (safe debug)
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - name: Show repo root (debug)
+        script: |
+          echo "=== Listing files ==="
+          ls -la
+          echo "===================="
+
+      - name: Check for pubspec.yaml
+        script: |
+          if [ -f pubspec.yaml ]; then
+            echo "✅ Found pubspec.yaml"
+          else
+            echo "❌ ERROR: pubspec.yaml not found!"
+            exit 1
+          fi
+
+      - name: Ensure Flutter native folders
+        script: |
+          if [ -d android ] && [ -d ios ]; then
+            echo "✅ Native folders present"
+          else
+            echo "⚙️  Creating missing native folders..."
+            flutter create .
+          fi
+
+      - name: Get Flutter dependencies
+        script: flutter pub get
+
+      - name: Accept Android SDK licenses
+        script: |
+          yes | flutter doctor --android-licenses || true
+
+      - name: Build Debug APK
+        script: flutter build apk --debug
+
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
