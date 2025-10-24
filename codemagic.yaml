@@ -1,22 +1,79 @@
 workflows:
-  build_android:
-    name: Build Android APK (Safe Debug)
+  build_android_auto_fix:
+    name: Build Android APK (auto-fix)
     instance_type: mac_mini_m2
-    max_build_duration: 30
+    max_build_duration: 60
     environment:
       flutter: stable
       xcode: latest
-      cocoapods: default
     scripts:
-      - name: Create missing Android folder
+      - name: Show repo root
+        script: |
+          echo "=== Repo root listing ==="
+          ls -la
+          echo "========================="
+      - name: Create missing Android folder (if missing)
         script: |
           if [ ! -d "android" ]; then
-            echo "Android folder missing. Creating it..."
+            echo "Android folder missing - running flutter create ."
             flutter create .
+          else
+            echo "Android folder present"
           fi
-      - name: Get Flutter dependencies
-        script: flutter pub get
-      - name: Build debug APK
-        script: flutter build apk --debug
+      - name: Force update android/app/build.gradle (minSdk/compileSdk)
+        script: |
+          if [ -f android/app/build.gradle ]; then
+            echo "Updating minSdkVersion -> 21 and compileSdkVersion -> 33 (if present)"
+            perl -0777 -pe 's/minSdkVersion\s*\d+/minSdkVersion 21/g' -i android/app/build.gradle || true
+            perl -0777 -pe 's/compileSdkVersion\s*\d+/compileSdkVersion 33/g' -i android/app/build.gradle || true
+            echo "Result (first 80 lines of build.gradle):"
+            sed -n '1,80p' android/app/build.gradle || true
+          else
+            echo "No android/app/build.gradle found (flutter create should have made it)"
+          fi
+      - name: Force update android/build.gradle (gradle plugin & kotlin)
+        script: |
+          if [ -f android/build.gradle ]; then
+            echo "Ensuring Gradle plugin and Kotlin version are compatible"
+            perl -0777 -pe 's/com.android.tools.build:gradle:[0-9]+\.[0-9]+(\.[0-9]+)?/com.android.tools.build:gradle:7.3.1/g' -i android/build.gradle || true
+            if grep -q "ext.kotlin_version" android/build.gradle; then
+              perl -0777 -pe 's/ext.kotlin_version\s*=.*$/ext.kotlin_version = "1.7.20"/m' -i android/build.gradle || true
+            else
+              echo "ext.kotlin_version = \"1.7.20\"" >> android/build.gradle || true
+            fi
+            echo "Top of android/build.gradle (first 60 lines):"
+            sed -n '1,60p' android/build.gradle || true
+          else
+            echo "No android/build.gradle found"
+          fi
+      - name: Ensure gradle wrapper distribution (show file)
+        script: |
+          if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+            echo "gradle-wrapper.properties:"
+            sed -n '1,120p' android/gradle/wrapper/gradle-wrapper.properties || true
+          else
+            echo "No gradle-wrapper.properties found yet"
+          fi
+      - name: Get Flutter deps (verbose)
+        script: |
+          flutter --version
+          flutter pub get -v
+      - name: Accept Android SDK licenses
+        script: |
+          yes | flutter doctor --android-licenses || true
+      - name: Build debug APK (verbose capture)
+        script: |
+          echo "Starting flutter build apk --debug (verbose). This may take several minutes..."
+          flutter build apk --debug -v 2>&1 | tee build.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo ">>> BUILD FAILED with exit code $EXIT_CODE"
+            echo ">>> Showing last 200 lines of build.log:"
+            tail -n 200 build.log || true
+            exit $EXIT_CODE
+          else
+            echo ">>> BUILD SUCCEEDED"
+            tail -n 60 build.log || true
+          fi
     artifacts:
-      - build/app/outputs/flutter-apk/app-debug.apk
+      - build/app/outputs/flutter-apk/*.apk
